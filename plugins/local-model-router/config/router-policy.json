@@ -1,0 +1,74 @@
+{
+  "version": 1,
+  "seniorTriggers": [
+    "architecture",
+    "architectural",
+    "security",
+    "authentication",
+    "authorization",
+    "permission",
+    "secret",
+    "migration",
+    "public api",
+    "api contract",
+    "refactor across",
+    "race condition",
+    "deadlock",
+    "integration test",
+    "end-to-end",
+    "e2e",
+    "flaky",
+    "production incident",
+    "архитектур",
+    "безопасност",
+    "аутентификац",
+    "авторизац",
+    "разрешени",
+    "секрет",
+    "миграци",
+    "публичн api",
+    "контракт api",
+    "гонк",
+    "взаимоблокиров",
+    "интеграционн",
+    "сквозн",
+    "нестабильн тест",
+    "инцидент"
+  ],
+  "routes": [
+    {
+      "id": "junior-test-runner",
+      "agent": "local-router-junior-test-runner",
+      "verbs": ["run", "execute", "rerun", "check", "запусти", "выполни", "перезапусти", "проверь"],
+      "objects": ["unit test", "test file", "lint", "typecheck", "type check", "build", "юнит-тест", "модульн тест", "файл тест", "линтер", "типизац", "сборк"]
+    },
+    {
+      "id": "junior-test-writer",
+      "agent": "local-router-junior-test-writer",
+      "verbs": ["add", "write", "extend", "добавь", "напиши", "расширь"],
+      "objects": ["unit test", "test case", "test cases", "test file", "cases", "юнит-тест", "модульн тест", "тест-кейс", "тестовые случаи", "кейсы", "файл тест"],
+      "requiresBoundedSignal": true
+    },
+    {
+      "id": "junior-explorer",
+      "agent": "local-router-junior-explorer",
+      "verbs": ["find", "locate", "list", "search", "inspect", "summarize", "найди", "поищи", "перечисли", "проверь", "изучи", "резюмируй"],
+      "objects": ["file", "files", "symbol", "function", "class", "call site", "reference", "implementation", "файл", "символ", "функци", "класс", "вызов", "ссылк", "реализац"]
+    }
+  ],
+  "boundedSignals": [
+    "only",
+    "single file",
+    "do not modify production",
+    "allowed files",
+    "acceptance criteria",
+    "validation command",
+    "только",
+    "один файл",
+    "не меняй production",
+    "не меняй рабочий код",
+    "разрешенные файлы",
+    "критерии приемки",
+    "команда проверки"
+  ]
+}

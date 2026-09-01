@@ -1,0 +1,10 @@
+{
+  "sessionId": "fixture-session",
+  "timestamp": 1788172800,
+  "cwd": "/synthetic/repo",
+  "toolName": "task",
+  "toolArgs": {
+    "agent_type": "local-router-junior-explorer",
+    "prompt": "Review authentication token storage and change the authorization architecture."
+  }
+}

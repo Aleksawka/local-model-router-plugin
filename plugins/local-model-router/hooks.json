@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "hooks": {
+    "preToolUse": [
+      {
+        "type": "command",
+        "matcher": "task",
+        "bash": "node \"${COPILOT_PLUGIN_ROOT}/scripts/task-routing-hook.mjs\"",
+        "env": {
+          "LOCAL_ROUTER_MODE": "audit"
+        },
+        "timeoutSec": 5
+      }
+    ]
+  }
+}

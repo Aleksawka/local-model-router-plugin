@@ -1,0 +1,18 @@
+{
+  "name": "local-ai-plugins",
+  "owner": {
+    "name": "Local AI"
+  },
+  "metadata": {
+    "description": "Local model routing experiments for GitHub Copilot",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "local-model-router",
+      "description": "Audit and rewrite bounded Copilot subagent dispatches to local model-backed agent profiles",
+      "version": "0.1.0",
+      "source": "./plugins/local-model-router"
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "sessionId": "fixture-session",
+  "timestamp": 1788172800,
+  "cwd": "/synthetic/repo",
+  "toolName": "task",
+  "toolArgs": {
+    "agent_type": "general-purpose",
+    "prompt": "Add test cases for 0 and 65536. Allowed file: test/parse-port.test.js only. Production code is forbidden. Validation command: node --test test/parse-port.test.js."
+  }
+}
