@@ -13,6 +13,11 @@ async function fixture(name) {
   return readFile(path.join(fixtures, name), "utf8");
 }
 
+function unwrapArgs(value) {
+  if (typeof value === "string") return JSON.parse(value);
+  return value;
+}
+
 async function runHook(input, mode = "audit") {
   const testRoot = path.join(pluginRoot, ".test-tmp");
   await mkdir(testRoot, { recursive: true });
@@ -44,6 +49,7 @@ test("rewrite mode changes only the recognized agent selector", async () => {
   const result = await runHook(JSON.stringify(input), "rewrite");
   assert.equal(result.output.modifiedArgs.agent_type, "local-router-junior-test-runner");
   assert.equal(result.output.modifiedArgs.prompt, input.toolArgs.prompt);
+  assert.deepEqual(result.output.updatedInput, result.output.modifiedArgs);
   assert.equal(result.audit.action, "rewrite-agent");
 });
 
@@ -76,4 +82,24 @@ test("malformed input returns an empty decision instead of blocking the task", a
   const result = await runHook("not-json", "rewrite");
   assert.deepEqual(result.output, {});
   assert.equal(result.audit.outcome, "invalid-hook-json");
+});
+
+test("rewrite mode parses camelCase toolArgs when they arrive as a JSON string", async () => {
+  const result = await runHook(await fixture("json-string-tool-args.json"), "rewrite");
+  const modified = unwrapArgs(result.output.modifiedArgs);
+  assert.equal(typeof result.output.modifiedArgs, "string");
+  assert.equal(modified.agent_type, "local-router-junior-test-runner");
+  assert.equal(result.output.updatedInput.agent_type, "local-router-junior-test-runner");
+  assert.equal(result.audit.argsRepresentation, "json-string");
+  assert.equal(result.audit.action, "rewrite-agent");
+});
+
+test("rewrite mode accepts Claude/App Agent payloads with tool_input and subagent_type", async () => {
+  const result = await runHook(await fixture("claude-agent-tool-input.json"), "rewrite");
+  assert.equal(result.output.modifiedArgs.subagent_type, "local-router-junior-explorer");
+  assert.equal(result.output.updatedInput.subagent_type, "local-router-junior-explorer");
+  assert.equal(result.audit.toolName, "Agent");
+  assert.equal(result.audit.agentField, "subagent_type");
+  assert.equal(result.audit.route, "junior-explorer");
+  assert.equal(result.audit.action, "rewrite-agent");
 });

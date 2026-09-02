@@ -41,7 +41,7 @@ tail -F "$OMLX_LOG" \
 ## T00 — целостность архива
 
 ```bash
-shasum -a 256 copilot-local-model-router-distribution-0.1.0.zip
+shasum -a 256 copilot-local-model-router-distribution-0.1.1.zip
 cd copilot-local-model-router-distribution/plugins/local-model-router
 node scripts/validate-package.mjs --allow-placeholders
 npm test
@@ -53,7 +53,7 @@ Pass:
 
 - JSON и структура валидны;
 - архив по умолчанию в audit mode;
-- семь unit-тестов hook прошли;
+- девять unit-тестов hook прошли;
 - Junior-профили не имеют tool `agent`.
 
 ## T01 — установка и обнаружение в App
@@ -126,7 +126,7 @@ Pass: тест отмечен как ожидаемое ограничение �
 
 Pass:
 
-- запись имеет `toolName: task`;
+- запись имеет `toolName: task` или Claude/App-эквивалент `Agent`;
 - `argKeys` соответствует реальному payload;
 - `agentField` не `null` и указывает на фактический selector;
 - `action: observe`;
@@ -237,7 +237,7 @@ Release gate:
 | oMLX OOM/5xx/eviction | 0 |
 | Максимум активных Junior | 1 |
 
-Headroom и глобальный lock в версии `0.1.0` ещё не автоматизированы. Эти два сценария выполняются ручным запретом; автоматизация является отдельным этапом harness/daemon.
+Headroom и глобальный lock в версии `0.1.1` ещё не автоматизированы. Эти два сценария выполняются ручным запретом; автоматизация является отдельным этапом harness/daemon.
 
 ## T13 — доказательство границы hook
 

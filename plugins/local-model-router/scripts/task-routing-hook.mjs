@@ -26,6 +26,17 @@ async function readStdin() {
   return value;
 }
 
+function isTaskDispatch(toolName) {
+  return /^(?:task|agent|custom-agent|custom_agent)$/iu.test(String(toolName ?? ""));
+}
+
+function rawToolArgs(input) {
+  if (Object.hasOwn(input, "toolArgs")) return input.toolArgs;
+  if (Object.hasOwn(input, "tool_args")) return input.tool_args;
+  if (Object.hasOwn(input, "tool_input")) return input.tool_input;
+  return undefined;
+}
+
 function normalizeArgs(rawArgs) {
   if (rawArgs && typeof rawArgs === "object" && !Array.isArray(rawArgs)) {
     return { args: rawArgs, representation: "object" };
@@ -81,10 +92,26 @@ function safeAgentValue(value) {
   return `sha256:${hash(value)}`;
 }
 
+function pluginDataRoot() {
+  return process.env.COPILOT_PLUGIN_DATA || process.env.CLAUDE_PLUGIN_DATA || path.join(tmpdir(), "copilot-local-model-router");
+}
+
 async function writeAudit(record) {
-  const dataRoot = process.env.COPILOT_PLUGIN_DATA || path.join(tmpdir(), "copilot-local-model-router");
+  const dataRoot = pluginDataRoot();
   await mkdir(dataRoot, { recursive: true, mode: 0o700 });
   await appendFile(path.join(dataRoot, "router-events.jsonl"), `${JSON.stringify(record)}\n`, { encoding: "utf8", mode: 0o600 });
+}
+
+function rewriteOutput(args, agentField, agent, representation) {
+  const modified = { ...args, [agentField]: agent };
+  // Official Copilot hooks reference types modifiedArgs as an object. camelCase CLI
+  // payloads often arrive with toolArgs as a JSON string; preserve that encoding so
+  // App/CLI runtimes that JSON.parse the substitute do not drop the rewrite.
+  // updatedInput is the Claude/VS Code/Open Plugin Spec equivalent and is ignored by native Copilot.
+  return {
+    modifiedArgs: representation === "json-string" ? JSON.stringify(modified) : modified,
+    updatedInput: modified
+  };
 }
 
 function finalOutput(value = {}) {
@@ -105,19 +132,20 @@ async function main() {
 
   const policy = JSON.parse(await readFile(path.join(pluginRoot, "config/router-policy.json"), "utf8"));
   const toolName = input.toolName ?? input.tool_name ?? "unknown";
-  const normalized = normalizeArgs(input.toolArgs ?? input.tool_args);
+  const taskDispatch = isTaskDispatch(toolName);
+  const normalized = normalizeArgs(rawToolArgs(input));
   const args = normalized.args;
   const prompt = extractPrompt(args);
   const agentField = knownAgentFields.find((field) => Object.hasOwn(args, field)) ?? null;
   const proposedAgent = agentField ? safeAgentValue(args[agentField]) : null;
-  const decision = toolName === "task" ? classify(prompt, policy) : { route: "ignored", agent: null, reasons: ["non-task-tool"] };
+  const decision = taskDispatch ? classify(prompt, policy) : { route: "ignored", agent: null, reasons: ["non-task-tool"] };
 
   let action = "observe";
   let output = {};
 
-  if (mode === "rewrite" && toolName === "task") {
+  if (mode === "rewrite" && taskDispatch) {
     if (decision.agent && agentField) {
-      output = { modifiedArgs: { ...args, [agentField]: decision.agent } };
+      output = rewriteOutput(args, agentField, decision.agent, normalized.representation);
       action = proposedAgent === decision.agent ? "already-selected" : "rewrite-agent";
     } else if (!decision.agent && proposedAgent && juniorAgents.has(proposedAgent)) {
       output = {
