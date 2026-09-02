@@ -1,0 +1,7 @@
+{
+  "sessionId": "fixture-session",
+  "timestamp": 1788172800,
+  "cwd": "/synthetic/repo",
+  "toolName": "task",
+  "toolArgs": "{\"agent_type\":\"general-purpose\",\"prompt\":\"TEST-ID ROUTE-RUNNER. Run the unit test file test/parse-port.test.js. Sentinel: DO_NOT_LOG_THIS_PROMPT.\"}"
+}

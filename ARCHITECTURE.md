@@ -4,7 +4,7 @@
 flowchart TD
     U["Пользователь"] --> S["Copilot App: Qwen Senior"]
     S -->|"прямое решение"| R["Ответ или изменение"]
-    S -->|"task(...)"| H["preToolUse hook"]
+    S -->|"task/Agent(...)"| H["preToolUse hook"]
     H -->|"сложно или рискованно"| S
     H -->|"bounded task"| J["Junior agent profile"]
     J --> O["oMLX: Qwen Junior"]
@@ -41,7 +41,7 @@ Hook возвращает `{}` и ничего не меняет. В лог по
 
 ### Rewrite
 
-Если поле selector известно и задача безопасно соответствует Junior-правилу, hook возвращает копию исходных `toolArgs` в `modifiedArgs`, меняя только selector. Если Senior уже предложил Junior для рискованной или нераспознанной задачи, hook возвращает deny с причиной.
+Если поле selector известно и задача безопасно соответствует Junior-правилу, hook возвращает копию исходных аргументов в `modifiedArgs` (и `updatedInput` для Claude/App format), меняя только selector. Если аргументы пришли JSON-строкой, `modifiedArgs` сохраняет ту же кодировку. Если Senior уже предложил Junior для рискованной или нераспознанной задачи, hook возвращает deny с причиной.
 
 Если selector не распознан, hook ничего не меняет. Это осознанный fail-open эксперимент; физическую модель всё равно необходимо проверить по oMLX.
 
