@@ -8,7 +8,7 @@
 |---|---|
 | Copilot plugin может включать custom agents, skills, hooks и MCP | Подтверждено |
 | `preToolUse` с matcher на runtime `task` и Claude/App `Agent` видит уже подготовленный вызов саб-агента | Подтверждено для Copilot hook runtime |
-| Command hook может вернуть `modifiedArgs` (object) и, для Claude-format, `updatedInput` | Подтверждено |
+| Command hook может вернуть `modifiedArgs` (object) и, для Claude-format, `hookSpecificOutput.updatedInput` | Подтверждено |
 | camelCase `toolArgs` может прийти объектом или JSON-строкой; PascalCase использует `tool_input` | Подтверждено |
 | `subagentStart` может заново выбрать агента или модель | Нет, событие происходит слишком поздно |
 | Command hook может сам создать делегирование | Нет |
@@ -23,7 +23,7 @@
 
 1. Bundled `preToolUse` hook действительно запускается внутри текущей Copilot App, а не только CLI/cloud runtime.
 2. App передаёт selector custom agent в `toolArgs` / `tool_input` в форме, которую можно безопасно изменить.
-3. `modifiedArgs` (и при необходимости `updatedInput`) приводит к запуску другого custom agent внутри App.
+3. `modifiedArgs` (и при Claude-format `hookSpecificOutput.updatedInput`) приводит к запуску другого custom agent внутри App.
 4. Новый профиль использует закреплённый локальный model ID, не откатываясь к Senior.
 5. Простые детерминированные правила дают приемлемую точность на реальных задачах.
 

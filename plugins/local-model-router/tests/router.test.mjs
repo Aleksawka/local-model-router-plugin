@@ -13,11 +13,6 @@ async function fixture(name) {
   return readFile(path.join(fixtures, name), "utf8");
 }
 
-function unwrapArgs(value) {
-  if (typeof value === "string") return JSON.parse(value);
-  return value;
-}
-
 async function runHook(input, mode = "audit") {
   const testRoot = path.join(pluginRoot, ".test-tmp");
   await mkdir(testRoot, { recursive: true });
@@ -49,13 +44,15 @@ test("rewrite mode changes only the recognized agent selector", async () => {
   const result = await runHook(JSON.stringify(input), "rewrite");
   assert.equal(result.output.modifiedArgs.agent_type, "local-router-junior-test-runner");
   assert.equal(result.output.modifiedArgs.prompt, input.toolArgs.prompt);
-  assert.deepEqual(result.output.updatedInput, result.output.modifiedArgs);
+  assert.equal(result.output.updatedInput, undefined);
+  assert.equal(result.output.hookSpecificOutput, undefined);
   assert.equal(result.audit.action, "rewrite-agent");
 });
 
 test("rewrite mode denies a proposed Junior for a security task", async () => {
   const result = await runHook(await fixture("security-task.json"), "rewrite");
   assert.equal(result.output.permissionDecision, "deny");
+  assert.equal(result.output.hookSpecificOutput, undefined);
   assert.equal(result.audit.route, "senior");
   assert.equal(result.audit.action, "deny-unsafe-junior");
 });
@@ -86,10 +83,9 @@ test("malformed input returns an empty decision instead of blocking the task", a
 
 test("rewrite mode parses camelCase toolArgs when they arrive as a JSON string", async () => {
   const result = await runHook(await fixture("json-string-tool-args.json"), "rewrite");
-  const modified = unwrapArgs(result.output.modifiedArgs);
-  assert.equal(typeof result.output.modifiedArgs, "string");
-  assert.equal(modified.agent_type, "local-router-junior-test-runner");
-  assert.equal(result.output.updatedInput.agent_type, "local-router-junior-test-runner");
+  assert.equal(typeof result.output.modifiedArgs, "object");
+  assert.equal(result.output.modifiedArgs.agent_type, "local-router-junior-test-runner");
+  assert.equal(result.output.updatedInput, undefined);
   assert.equal(result.audit.argsRepresentation, "json-string");
   assert.equal(result.audit.action, "rewrite-agent");
 });
@@ -97,9 +93,28 @@ test("rewrite mode parses camelCase toolArgs when they arrive as a JSON string",
 test("rewrite mode accepts Claude/App Agent payloads with tool_input and subagent_type", async () => {
   const result = await runHook(await fixture("claude-agent-tool-input.json"), "rewrite");
   assert.equal(result.output.modifiedArgs.subagent_type, "local-router-junior-explorer");
-  assert.equal(result.output.updatedInput.subagent_type, "local-router-junior-explorer");
+  assert.equal(result.output.hookSpecificOutput.hookEventName, "PreToolUse");
+  assert.equal(result.output.hookSpecificOutput.updatedInput.subagent_type, "local-router-junior-explorer");
+  assert.equal(result.output.updatedInput, undefined);
   assert.equal(result.audit.toolName, "Agent");
   assert.equal(result.audit.agentField, "subagent_type");
   assert.equal(result.audit.route, "junior-explorer");
   assert.equal(result.audit.action, "rewrite-agent");
+});
+
+test("rewrite mode wraps Claude-format deny decisions in hookSpecificOutput", async () => {
+  const input = {
+    hook_event_name: "PreToolUse",
+    session_id: "fixture-session",
+    tool_name: "Agent",
+    tool_input: {
+      subagent_type: "local-router-junior-explorer",
+      prompt: "Review authentication token storage and change the authorization architecture."
+    }
+  };
+  const result = await runHook(JSON.stringify(input), "rewrite");
+  assert.equal(result.output.permissionDecision, "deny");
+  assert.equal(result.output.hookSpecificOutput.hookEventName, "PreToolUse");
+  assert.equal(result.output.hookSpecificOutput.permissionDecision, "deny");
+  assert.equal(result.audit.action, "deny-unsafe-junior");
 });

@@ -102,16 +102,39 @@ async function writeAudit(record) {
   await appendFile(path.join(dataRoot, "router-events.jsonl"), `${JSON.stringify(record)}\n`, { encoding: "utf8", mode: 0o600 });
 }
 
-function rewriteOutput(args, agentField, agent, representation) {
+function isClaudeFormat(input) {
+  return typeof input.hook_event_name === "string"
+    || (Object.hasOwn(input, "tool_input") && !Object.hasOwn(input, "toolArgs"))
+    || (Object.hasOwn(input, "tool_name") && !Object.hasOwn(input, "toolName"));
+}
+
+function rewriteOutput(args, agentField, agent, { claudeFormat }) {
   const modified = { ...args, [agentField]: agent };
-  // Official Copilot hooks reference types modifiedArgs as an object. camelCase CLI
-  // payloads often arrive with toolArgs as a JSON string; preserve that encoding so
-  // App/CLI runtimes that JSON.parse the substitute do not drop the rewrite.
-  // updatedInput is the Claude/VS Code/Open Plugin Spec equivalent and is ignored by native Copilot.
-  return {
-    modifiedArgs: representation === "json-string" ? JSON.stringify(modified) : modified,
-    updatedInput: modified
+  // Copilot hooks reference types modifiedArgs as an object regardless of whether
+  // the inbound toolArgs value was an object or a JSON string.
+  const output = { modifiedArgs: modified };
+  if (claudeFormat) {
+    output.hookSpecificOutput = {
+      hookEventName: "PreToolUse",
+      updatedInput: modified
+    };
+  }
+  return output;
+}
+
+function denyOutput(reason, { claudeFormat }) {
+  const output = {
+    permissionDecision: "deny",
+    permissionDecisionReason: reason
   };
+  if (claudeFormat) {
+    output.hookSpecificOutput = {
+      hookEventName: "PreToolUse",
+      permissionDecision: "deny",
+      permissionDecisionReason: reason
+    };
+  }
+  return output;
 }
 
 function finalOutput(value = {}) {
@@ -133,6 +156,7 @@ async function main() {
   const policy = JSON.parse(await readFile(path.join(pluginRoot, "config/router-policy.json"), "utf8"));
   const toolName = input.toolName ?? input.tool_name ?? "unknown";
   const taskDispatch = isTaskDispatch(toolName);
+  const claudeFormat = isClaudeFormat(input);
   const normalized = normalizeArgs(rawToolArgs(input));
   const args = normalized.args;
   const prompt = extractPrompt(args);
@@ -145,13 +169,13 @@ async function main() {
 
   if (mode === "rewrite" && taskDispatch) {
     if (decision.agent && agentField) {
-      output = rewriteOutput(args, agentField, decision.agent, normalized.representation);
+      output = rewriteOutput(args, agentField, decision.agent, { claudeFormat });
       action = proposedAgent === decision.agent ? "already-selected" : "rewrite-agent";
     } else if (!decision.agent && proposedAgent && juniorAgents.has(proposedAgent)) {
-      output = {
-        permissionDecision: "deny",
-        permissionDecisionReason: "Local router kept this task on Senior because it did not match a bounded Junior rule."
-      };
+      output = denyOutput(
+        "Local router kept this task on Senior because it did not match a bounded Junior rule.",
+        { claudeFormat }
+      );
       action = "deny-unsafe-junior";
     } else if (decision.agent && !agentField) {
       action = "schema-not-recognized";

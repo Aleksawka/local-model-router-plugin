@@ -4,7 +4,8 @@
 
 - Align `preToolUse` with the current Copilot hooks reference: match `task`, `Task`, `Agent`, and `custom-agent`, not only `task`.
 - Parse both camelCase `toolArgs`/`tool_args` and VS Code/Claude `tool_input` payloads, including JSON-string `toolArgs`.
-- Preserve JSON-string `modifiedArgs` when that is how the runtime supplied arguments, and also emit `updatedInput` for Open Plugin Spec / Claude-format clients.
+- Always return `modifiedArgs` as an object, even when inbound `toolArgs` was a JSON string.
+- For Claude/VS Code `PreToolUse` payloads, wrap `updatedInput` and deny decisions in `hookSpecificOutput`.
 - Add a Windows `powershell` hook command and resolve plugin root from `COPILOT_PLUGIN_ROOT`, `PLUGIN_ROOT`, or `CLAUDE_PLUGIN_ROOT`.
 - Prefer `COPILOT_PLUGIN_DATA`, then `CLAUDE_PLUGIN_DATA`, for audit logs.
 
