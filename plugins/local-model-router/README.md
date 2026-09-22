@@ -6,7 +6,7 @@ Audit-first Copilot plugin для исследования локальной м
 
 - `agents/` — один Senior-orchestrator и три Junior-роли;
 - `skills/local-routing-policy/` — консервативная policy делегирования;
-- `hooks.json` — native `preToolUse` matcher `task`;
+- `hooks.json` — native `preToolUse` matcher `task|Task|Agent|agent|custom-agent`;
 - `scripts/task-routing-hook.mjs` — audit/rewrite logic без внешних зависимостей;
 - `config/router-policy.json` — детерминированные англо-русские правила;
 - `tests/` — unit-тесты hook;

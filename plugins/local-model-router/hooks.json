@@ -4,8 +4,9 @@
     "preToolUse": [
       {
         "type": "command",
-        "matcher": "task",
-        "bash": "node \"${COPILOT_PLUGIN_ROOT}/scripts/task-routing-hook.mjs\"",
+        "matcher": "task|Task|Agent|agent|custom-agent",
+        "bash": "node \"${COPILOT_PLUGIN_ROOT:-${PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT}}}/scripts/task-routing-hook.mjs\"",
+        "powershell": "node \"$(if ($env:COPILOT_PLUGIN_ROOT) { $env:COPILOT_PLUGIN_ROOT } elseif ($env:PLUGIN_ROOT) { $env:PLUGIN_ROOT } else { $env:CLAUDE_PLUGIN_ROOT })/scripts/task-routing-hook.mjs\"",
         "env": {
           "LOCAL_ROUTER_MODE": "audit"
         },

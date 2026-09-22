@@ -26,6 +26,17 @@ async function readStdin() {
   return value;
 }
 
+function isTaskDispatch(toolName) {
+  return /^(?:task|agent|custom-agent|custom_agent)$/iu.test(String(toolName ?? ""));
+}
+
+function rawToolArgs(input) {
+  if (Object.hasOwn(input, "toolArgs")) return input.toolArgs;
+  if (Object.hasOwn(input, "tool_args")) return input.tool_args;
+  if (Object.hasOwn(input, "tool_input")) return input.tool_input;
+  return undefined;
+}
+
 function normalizeArgs(rawArgs) {
   if (rawArgs && typeof rawArgs === "object" && !Array.isArray(rawArgs)) {
     return { args: rawArgs, representation: "object" };
@@ -81,10 +92,49 @@ function safeAgentValue(value) {
   return `sha256:${hash(value)}`;
 }
 
+function pluginDataRoot() {
+  return process.env.COPILOT_PLUGIN_DATA || process.env.CLAUDE_PLUGIN_DATA || path.join(tmpdir(), "copilot-local-model-router");
+}
+
 async function writeAudit(record) {
-  const dataRoot = process.env.COPILOT_PLUGIN_DATA || path.join(tmpdir(), "copilot-local-model-router");
+  const dataRoot = pluginDataRoot();
   await mkdir(dataRoot, { recursive: true, mode: 0o700 });
   await appendFile(path.join(dataRoot, "router-events.jsonl"), `${JSON.stringify(record)}\n`, { encoding: "utf8", mode: 0o600 });
+}
+
+function isClaudeFormat(input) {
+  return typeof input.hook_event_name === "string"
+    || (Object.hasOwn(input, "tool_input") && !Object.hasOwn(input, "toolArgs"))
+    || (Object.hasOwn(input, "tool_name") && !Object.hasOwn(input, "toolName"));
+}
+
+function rewriteOutput(args, agentField, agent, { claudeFormat }) {
+  const modified = { ...args, [agentField]: agent };
+  // Copilot hooks reference types modifiedArgs as an object regardless of whether
+  // the inbound toolArgs value was an object or a JSON string.
+  const output = { modifiedArgs: modified };
+  if (claudeFormat) {
+    output.hookSpecificOutput = {
+      hookEventName: "PreToolUse",
+      updatedInput: modified
+    };
+  }
+  return output;
+}
+
+function denyOutput(reason, { claudeFormat }) {
+  const output = {
+    permissionDecision: "deny",
+    permissionDecisionReason: reason
+  };
+  if (claudeFormat) {
+    output.hookSpecificOutput = {
+      hookEventName: "PreToolUse",
+      permissionDecision: "deny",
+      permissionDecisionReason: reason
+    };
+  }
+  return output;
 }
 
 function finalOutput(value = {}) {
@@ -105,25 +155,27 @@ async function main() {
 
   const policy = JSON.parse(await readFile(path.join(pluginRoot, "config/router-policy.json"), "utf8"));
   const toolName = input.toolName ?? input.tool_name ?? "unknown";
-  const normalized = normalizeArgs(input.toolArgs ?? input.tool_args);
+  const taskDispatch = isTaskDispatch(toolName);
+  const claudeFormat = isClaudeFormat(input);
+  const normalized = normalizeArgs(rawToolArgs(input));
   const args = normalized.args;
   const prompt = extractPrompt(args);
   const agentField = knownAgentFields.find((field) => Object.hasOwn(args, field)) ?? null;
   const proposedAgent = agentField ? safeAgentValue(args[agentField]) : null;
-  const decision = toolName === "task" ? classify(prompt, policy) : { route: "ignored", agent: null, reasons: ["non-task-tool"] };
+  const decision = taskDispatch ? classify(prompt, policy) : { route: "ignored", agent: null, reasons: ["non-task-tool"] };
 
   let action = "observe";
   let output = {};
 
-  if (mode === "rewrite" && toolName === "task") {
+  if (mode === "rewrite" && taskDispatch) {
     if (decision.agent && agentField) {
-      output = { modifiedArgs: { ...args, [agentField]: decision.agent } };
+      output = rewriteOutput(args, agentField, decision.agent, { claudeFormat });
       action = proposedAgent === decision.agent ? "already-selected" : "rewrite-agent";
     } else if (!decision.agent && proposedAgent && juniorAgents.has(proposedAgent)) {
-      output = {
-        permissionDecision: "deny",
-        permissionDecisionReason: "Local router kept this task on Senior because it did not match a bounded Junior rule."
-      };
+      output = denyOutput(
+        "Local router kept this task on Senior because it did not match a bounded Junior rule.",
+        { claudeFormat }
+      );
       action = "deny-unsafe-junior";
     } else if (decision.agent && !agentField) {
       action = "schema-not-recognized";

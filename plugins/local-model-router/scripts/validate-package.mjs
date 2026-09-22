@@ -29,6 +29,15 @@ async function main() {
   if (manifest?.name !== "local-model-router") errors.push("Plugin name is incorrect");
   if (hooks?.version !== 1 || !Array.isArray(hooks?.hooks?.preToolUse)) errors.push("preToolUse hook is missing");
   if (hooks?.hooks?.preToolUse?.[0]?.env?.LOCAL_ROUTER_MODE !== "audit") errors.push("Archive must ship in audit mode");
+  const matcher = hooks?.hooks?.preToolUse?.[0]?.matcher ?? "";
+  if (!/\btask\b/u.test(matcher) || !/\bAgent\b/u.test(matcher)) {
+    errors.push("preToolUse matcher must cover both Copilot `task` and Claude/App `Agent` tool names");
+  }
+  if (!hooks?.hooks?.preToolUse?.[0]?.bash) errors.push("bash hook command is missing");
+  if (!hooks?.hooks?.preToolUse?.[0]?.powershell) errors.push("powershell hook command is missing");
+  if (!String(hooks?.hooks?.preToolUse?.[0]?.bash ?? "").includes("PLUGIN_ROOT")) {
+    errors.push("bash hook command must resolve plugin root from documented env vars");
+  }
 
   const agentDir = path.join(pluginRoot, "agents");
   const agentFiles = (await readdir(agentDir)).filter((file) => file.endsWith(".agent.md"));

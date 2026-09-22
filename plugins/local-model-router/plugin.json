@@ -1,7 +1,9 @@
 {
   "name": "local-model-router",
   "description": "Audit-first local role and model routing for GitHub Copilot subagents",
-  "version": "0.1.0",
+  "version": "0.1.1",
+  "license": "MIT",
+  "keywords": ["copilot", "hooks", "agents", "local-models"],
   "agents": "agents/",
   "skills": "skills/",
   "hooks": "hooks.json"
