@@ -1,0 +1,15 @@
+{
+  "object": "list",
+  "data": [
+    {
+      "id": "local-senior",
+      "object": "model",
+      "owned_by": "omlx"
+    },
+    {
+      "id": "local-junior",
+      "object": "model",
+      "owned_by": "omlx"
+    }
+  ]
+}

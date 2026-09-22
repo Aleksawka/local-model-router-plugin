@@ -1,0 +1,21 @@
+{
+  "providers": [
+    {
+      "name": "oMLX",
+      "type": "openai-compatible",
+      "apiKey": "SECRET_SHOULD_NOT_LEAK",
+      "models": [
+        {
+          "id": "qwen3-coder-30b",
+          "name": "Qwen Senior",
+          "imported": true
+        },
+        {
+          "id": "qwen3-coder-8b",
+          "name": "Qwen Junior",
+          "imported": true
+        }
+      ]
+    }
+  ]
+}

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.0 — 2026-09-22
+
+- Настройка ролей: какая из уже импортированных в GitHub Copilot App моделей используется как Senior, а какая как Junior.
+- Каталог допустимых моделей (`config/imported-models.json`) отделён от назначения ролей (`config/model-roles.json`).
+- `configure-models.mjs` обнаруживает Copilot-imported модели, принимает точный ID или индекс из `--list` и отказывается от ID вне каталога.
+- Slash-команда `/set-model-roles` и skill `local-model-roles`.
+- Unit-тесты назначения ролей и извлечения каталога.
+
 ## 0.1.1 — 2026-09-02
 
 - Align `preToolUse` with the current Copilot hooks reference: match `task`, `Task`, `Agent`, and `custom-agent`, not only `task`.

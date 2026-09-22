@@ -8,7 +8,7 @@
 
 - версию Copilot App и вывод `copilot --version`;
 - версию oMLX из `/api/status`;
-- точные Senior ID (`S`) и Junior ID (`J`) из `/v1/models`;
+- точные Senior ID (`S`) и Junior ID (`J`) из Copilot App model picker (импортированные из провайдера), а не только из oMLX `/v1/models`;
 - checksum ZIP и установленного plugin;
 - состояние `/v1/models/status` и `/api/status`;
 - memory pressure и swap до теста.
@@ -41,29 +41,30 @@ tail -F "$OMLX_LOG" \
 ## T00 — целостность архива
 
 ```bash
-shasum -a 256 copilot-local-model-router-distribution-0.1.1.zip
+shasum -a 256 copilot-local-model-router-distribution-0.2.0.zip
 cd copilot-local-model-router-distribution/plugins/local-model-router
 node scripts/validate-package.mjs --allow-placeholders
 npm test
 ```
 
-После подстановки ID повторите без `--allow-placeholders`.
+После назначения Senior/Junior из Copilot-imported каталога повторите `validate-package.mjs` без `--allow-placeholders`.
 
 Pass:
 
 - JSON и структура валидны;
 - архив по умолчанию в audit mode;
-- десять unit-тестов hook прошли;
+- двадцать один unit-тест hook и role setting прошли;
+- `model-roles.json` ещё не назначает роли до `--senior`/`--junior`;
 - Junior-профили не имеют tool `agent`.
 
 ## T01 — установка и обнаружение в App
 
 1. Установите local marketplace по инструкции.
 2. Полностью перезапустите App.
-3. Проверьте `Customize → Plugins`, `/plugin`, `/agent`, `/skills list`.
+3. Проверьте `Customize → Plugins`, `/plugin`, `/agent`, `/skills list`, `/set-model-roles`.
 4. Ещё раз полностью перезапустите App и повторите проверку.
 
-Pass: plugin сохраняется после второго перезапуска; видны четыре уникальных `local-router-*` agent и skill.
+Pass: plugin сохраняется после второго перезапуска; видны четыре уникальных `local-router-*` agent, skills `local-routing-policy` и `local-model-roles`, команда `/set-model-roles`.
 
 Если CLI видит plugin, а App нет, filesystem marketplace не совместим с этой сборкой App. Это отдельный результат; разместите marketplace в Git и установите его через UI.
 
@@ -79,6 +80,23 @@ Pass:
 - неизвестный ID даёт 404/no generation;
 - `model_fallback=false`;
 - нет 409, 507, 5xx, OOM или eviction.
+
+## T02a — назначение Senior/Junior из Copilot-imported каталога
+
+1. В Copilot App откройте Settings → Model providers и убедитесь, что модели провайдера видны в picker.
+2. Выполните `node scripts/configure-models.mjs --list`.
+3. Назначьте Senior и Junior только из этого списка (`--senior` / `--junior` по ID или индексу).
+4. Выполните `--check` и `validate-package.mjs` без `--allow-placeholders`.
+5. Повторите назначение с заведомо отсутствующим ID.
+
+Pass:
+
+- `--list` показывает импортированные модели и не предлагает `Auto`;
+- setting `config/model-roles.json` и четыре agent `model:` совпадают;
+- неизвестный ID отвергается без `--allow-unlisted`;
+- GitHub-hosted модели не становятся кандидатами по умолчанию.
+
+Если `--list` пуст, это отдельный результат discovery: экспортируйте picker ID в `config/imported-models.json` и повторите. Не считайте oMLX `/v1/models` доказательством импорта в App, пока те же ID не видны в picker.
 
 ## T03 — вручную закреплённый Junior
 
@@ -237,7 +255,7 @@ Release gate:
 | oMLX OOM/5xx/eviction | 0 |
 | Максимум активных Junior | 1 |
 
-Headroom и глобальный lock в версии `0.1.1` ещё не автоматизированы. Эти два сценария выполняются ручным запретом; автоматизация является отдельным этапом harness/daemon.
+Headroom и глобальный lock в версии `0.2.0` ещё не автоматизированы. Эти два сценария выполняются ручным запретом; автоматизация является отдельным этапом harness/daemon.
 
 ## T13 — доказательство границы hook
 
