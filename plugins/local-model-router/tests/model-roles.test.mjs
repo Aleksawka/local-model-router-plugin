@@ -268,6 +268,10 @@ test("configure-models CLI refuses IDs outside the imported catalog", async () =
     assert.equal(partial.status, 0, partial.stderr + partial.stdout);
     assert.match(partial.stdout, /senior=picker-senior/);
     assert.match(partial.stdout, /junior=qwen3-coder-8b/);
+    const partialSetting = JSON.parse(await readFile(path.join(root, "config/model-roles.json"), "utf8"));
+    assert.equal(partialSetting.catalog.find((model) => model.id === "picker-senior").origin, "unlisted");
+    const partialCheck = spawnSync(process.execPath, [configure, "--check"], { encoding: "utf8", env });
+    assert.equal(partialCheck.status, 0, partialCheck.stderr + partialCheck.stdout);
 
     const auto = spawnSync(
       process.execPath,

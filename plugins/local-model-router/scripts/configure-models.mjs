@@ -97,6 +97,15 @@ function parseArgs(argv) {
   return result;
 }
 
+function catalogWithConfirmedIds(models, seniorId, juniorId) {
+  const next = models.map((model) => ({ ...model }));
+  for (const id of [seniorId, juniorId]) {
+    if (next.some((model) => model.id === id)) continue;
+    next.push({ id, name: null, provider: null, origin: "unlisted" });
+  }
+  return next;
+}
+
 function resolveConfiguredRole(value, models, label, allowUnlisted) {
   const raw = String(value ?? "").trim();
   if (allowUnlisted && !/^\d+$/u.test(raw)) return validateModelId(label, raw);
@@ -249,7 +258,7 @@ async function main() {
     pluginRoot,
     seniorModelId: seniorId,
     juniorModelId: juniorId,
-    catalog: catalog.models,
+    catalog: catalogWithConfirmedIds(catalog.models, seniorId, juniorId),
     catalogSource: catalog.catalogSource
   });
   await maybeSaveCatalog(args, catalog);
