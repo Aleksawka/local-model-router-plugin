@@ -25,6 +25,6 @@ node "${COPILOT_PLUGIN_ROOT}/scripts/configure-models.mjs" \
 node "${COPILOT_PLUGIN_ROOT}/scripts/configure-models.mjs" --check
 ```
 
-If `--list` is empty, ask the user to paste the exact IDs from the Copilot App picker into `config/imported-models.json` or a `--catalog` file, then retry. Use `--allow-unlisted` only after the user confirms those IDs already exist in the App picker.
+`--list` prints each row's `origin`. Prefer `imported` rows. If `--list` is empty, ask the user to paste the exact IDs from the Copilot App picker into `config/imported-models.json` or a `--catalog` file, then retry. Use `--allow-unlisted` only after the user confirms those IDs already exist in the App picker; a confirmed exact ID is accepted even when the discovered catalog is partial. Do not assign `auto` or `copilot-auto`. `--from-endpoint` contributes only `origin=imported` rows unless the user passes `--allow-unlisted`.
 
 5. Tell the user to reinstall or reload the plugin and start a new App session so agent `model:` pins take effect.

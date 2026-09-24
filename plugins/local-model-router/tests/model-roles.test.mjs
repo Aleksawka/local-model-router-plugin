@@ -10,12 +10,15 @@ import {
   checkRoleAssignment,
   extractFrontmatterModel,
   readAssignedModels,
-  readRoleSetting
+  readRoleSetting,
+  validateModelId
 } from "../scripts/lib/model-roles.mjs";
 import {
   assertInCatalog,
   discoverImportedModels,
+  endpointCatalogModels,
   extractImportedModels,
+  formatModelList,
   parseJsonDocument,
   resolveRoleSelection,
   stripSecrets
@@ -70,6 +73,42 @@ test("parses JSONC catalogs", () => {
     "models": [{ "id": "imported-a", "name": "A", "imported": true }]
   }`));
   assert.equal(models[0].id, "imported-a");
+});
+
+test("descends into provider containers instead of listing the provider", () => {
+  const models = extractImportedModels({
+    providers: [{
+      id: "my-provider",
+      displayName: "My Provider",
+      models: [{ id: "m1", name: "M1" }, { id: "m2" }]
+    }]
+  });
+  assert.deepEqual(models.map((model) => model.id), ["m1", "m2"]);
+  assert.equal(models[0].provider, "My Provider");
+});
+
+test("prints origin so imported and unknown catalog rows are distinguishable", () => {
+  const text = formatModelList([
+    { id: "phi-local", origin: "imported", provider: "Foundry", name: "Phi" },
+    { id: "gpt-4.1", origin: "unknown", provider: "openai" }
+  ]);
+  assert.match(text, /phi-local\s+\(imported — Foundry — Phi\)/);
+  assert.match(text, /gpt-4.1\s+\(unknown — openai\)/);
+});
+
+test("keeps only imported endpoint models unless the caller confirms unlisted IDs", () => {
+  const openai = extractImportedModels({
+    data: [
+      { id: "gpt-4.1", object: "model", owned_by: "openai" },
+      { id: "local-senior", object: "model", owned_by: "ollama", imported: true }
+    ]
+  });
+  assert.equal(openai.find((model) => model.id === "gpt-4.1").origin, "unknown");
+  assert.deepEqual(endpointCatalogModels(openai).map((model) => model.id), ["local-senior"]);
+  assert.deepEqual(
+    endpointCatalogModels(openai, { allowUnlisted: true }).map((model) => model.id),
+    ["gpt-4.1", "local-senior"]
+  );
 });
 
 test("resolves role selection by exact ID or 1-based index", () => {
@@ -155,7 +194,24 @@ test("rejects Copilot Auto as a role holder", async () => {
       }),
       /cannot be Copilot Auto/
     );
+    await assert.rejects(
+      () => applyRoleAssignment({
+        pluginRoot: root,
+        seniorModelId: "copilot-auto",
+        juniorModelId: "qwen3-coder-8b"
+      }),
+      /cannot be Copilot Auto/
+    );
   });
+  assert.throws(() => validateModelId("Senior", "copilot-auto"), /cannot be Copilot Auto/);
+});
+
+test("threads includeHosted into catalog file extraction", async () => {
+  const file = path.join(fixtures, "copilot-hosted-and-imported.json");
+  const plain = await discoverImportedModels({ catalogFiles: [file] });
+  assert.deepEqual(plain.models.map((model) => model.id), ["phi-local"]);
+  const hosted = await discoverImportedModels({ catalogFiles: [file], includeHosted: true });
+  assert.deepEqual(hosted.models.map((model) => model.id), ["gpt-4.1", "phi-local"]);
 });
 
 test("configure-models CLI lists, assigns by index, and checks the setting", async () => {
@@ -203,5 +259,22 @@ test("configure-models CLI refuses IDs outside the imported catalog", async () =
     );
     assert.equal(unlisted.status, 0, unlisted.stderr + unlisted.stdout);
     assert.match(unlisted.stdout, /senior=picker-senior/);
+
+    const partial = spawnSync(
+      process.execPath,
+      [configure, "--catalog", catalog, "--allow-unlisted", "--senior", "picker-senior", "--junior", "2"],
+      { encoding: "utf8", env }
+    );
+    assert.equal(partial.status, 0, partial.stderr + partial.stdout);
+    assert.match(partial.stdout, /senior=picker-senior/);
+    assert.match(partial.stdout, /junior=qwen3-coder-8b/);
+
+    const auto = spawnSync(
+      process.execPath,
+      [configure, "--allow-unlisted", "--senior", "copilot-auto", "--junior", "picker-junior"],
+      { encoding: "utf8", env }
+    );
+    assert.equal(auto.status, 1);
+    assert.match(auto.stderr, /cannot be Copilot Auto/);
   });
 });

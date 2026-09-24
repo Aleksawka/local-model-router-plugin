@@ -78,7 +78,7 @@ npm test
 cd ../..
 ```
 
-`--senior` и `--junior` принимают точный ID picker либо номер строки из `--list`. Если `--list` пуст, сохраните ID из Copilot App picker в `config/imported-models.json` или передайте `--catalog`. `--from-endpoint` к oMLX допустим только если те же ID уже видны в picker. `--allow-unlisted` — аварийный обход после явного подтверждения ID в App.
+`--senior` и `--junior` принимают точный ID picker либо номер строки из `--list`. `--list` печатает `origin` (`imported`, `unknown` или `hosted`). Если `--list` пуст, сохраните ID из Copilot App picker в `config/imported-models.json` или передайте `--catalog`. `--from-endpoint` добавляет только записи с `origin=imported`; остальные записи того же ответа принимаются только с `--allow-unlisted`. `--allow-unlisted` работает и при частичном каталоге: точный подтверждённый ID обходит список, числовой индекс по-прежнему выбирает строку `--list`.
 
 Внутри Copilot App ту же настройку можно запустить командой `/set-model-roles`.
 
@@ -88,7 +88,7 @@ cd ../..
 - `SETTING senior=... junior=...` и четыре строки `Configured` при назначении;
 - четыре строки `OK` при `--check`;
 - `Package is valid`;
-- двадцать один прошедший unit-тест;
+- двадцать пять прошедших unit-тестов;
 - отсутствие npm install: у plugin нет внешних runtime-зависимостей.
 
 ## 4. Рекомендуемая локальная установка через marketplace

@@ -20,6 +20,7 @@ import {
   assertInCatalog,
   defaultSearchRoots,
   discoverImportedModels,
+  endpointCatalogModels,
   extractImportedModels,
   formatModelList,
   parseJsonDocument,
@@ -45,7 +46,7 @@ Options:
   --senior <id|index>    Exact Copilot model ID, or 1-based --list index
   --junior <id|index>    Exact Copilot model ID, or 1-based --list index
   --catalog <file>       JSON catalog exported from Copilot App / picker
-  --from-endpoint <url>  Optional provider /v1/models URL; confirm IDs in App
+  --from-endpoint <url>  Provider /v1/models URL. Only origin=imported entries are used unless --allow-unlisted
   --save-catalog         Write the discovered catalog to config/imported-models.json
   --allow-unlisted       Allow IDs that discovery did not find
   --include-hosted       Include GitHub-hosted models in the candidate list
@@ -96,6 +97,13 @@ function parseArgs(argv) {
   return result;
 }
 
+function resolveConfiguredRole(value, models, label, allowUnlisted) {
+  const raw = String(value ?? "").trim();
+  if (allowUnlisted && !/^\d+$/u.test(raw)) return validateModelId(label, raw);
+  if (models.length) return resolveRoleSelection(value, models, label);
+  return validateModelId(label, value);
+}
+
 async function loadEndpointCatalog(url) {
   if (!url) return [];
   let parsed;
@@ -109,7 +117,7 @@ async function loadEndpointCatalog(url) {
   }
   const response = await fetch(parsed, { signal: AbortSignal.timeout(8000) });
   if (!response.ok) throw new Error(`Provider catalog request failed: ${response.status}`);
-  return extractImportedModels(await response.json(), { importedHint: true, providerHint: parsed.host });
+  return extractImportedModels(await response.json(), { providerHint: parsed.host });
 }
 
 async function loadCatalog(args) {
@@ -120,7 +128,10 @@ async function loadCatalog(args) {
     searchRoots: defaultSearchRoots(),
     includeHosted: args.includeHosted
   });
-  const endpointModels = await loadEndpointCatalog(args.fromEndpoint);
+  const endpointModels = endpointCatalogModels(await loadEndpointCatalog(args.fromEndpoint), {
+    allowUnlisted: args.allowUnlisted,
+    includeHosted: args.includeHosted
+  });
   const models = [];
   const seen = new Set();
   const sources = [];
@@ -221,12 +232,8 @@ async function main() {
   }
 
   const selected = await promptMissingRoles(args, catalog.models);
-  const seniorId = catalog.models.length
-    ? resolveRoleSelection(selected.senior, catalog.models, "Senior")
-    : validateModelId("Senior", selected.senior);
-  const juniorId = catalog.models.length
-    ? resolveRoleSelection(selected.junior, catalog.models, "Junior")
-    : validateModelId("Junior", selected.junior);
+  const seniorId = resolveConfiguredRole(selected.senior, catalog.models, "Senior", args.allowUnlisted);
+  const juniorId = resolveConfiguredRole(selected.junior, catalog.models, "Junior", args.allowUnlisted);
 
   if (!catalog.models.length && !args.allowUnlisted) {
     throw new Error("No Copilot-imported catalog is available. Discover models with --list, pass --catalog, or confirm picker IDs with --allow-unlisted.");

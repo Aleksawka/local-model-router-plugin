@@ -53,7 +53,7 @@ Pass:
 
 - JSON и структура валидны;
 - архив по умолчанию в audit mode;
-- двадцать один unit-тест hook и role setting прошли;
+- двадцать пять unit-тестов hook и role setting прошли;
 - `model-roles.json` ещё не назначает роли до `--senior`/`--junior`;
 - Junior-профили не имеют tool `agent`.
 
@@ -91,10 +91,10 @@ Pass:
 
 Pass:
 
-- `--list` показывает импортированные модели и не предлагает `Auto`;
+- `--list` показывает импортированные модели, их `origin` и не предлагает `Auto` или `copilot-auto`;
 - setting `config/model-roles.json` и четыре agent `model:` совпадают;
-- неизвестный ID отвергается без `--allow-unlisted`;
-- GitHub-hosted модели не становятся кандидатами по умолчанию.
+- неизвестный ID отвергается без `--allow-unlisted`, в том числе когда каталог уже непустой;
+- GitHub-hosted модели не становятся кандидатами по умолчанию; с `--include-hosted` они видны и в файлах каталога.
 
 Если `--list` пуст, это отдельный результат discovery: экспортируйте picker ID в `config/imported-models.json` и повторите. Не считайте oMLX `/v1/models` доказательством импорта в App, пока те же ID не видны в picker.
 

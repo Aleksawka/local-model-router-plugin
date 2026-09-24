@@ -47,7 +47,7 @@ const SKIP_DIR_NAMES = new Set([
 
 const CATALOG_FILE_HINT = /model|provider|catalog|setting|config|store|byok|custom|copilot/iu;
 const SECRET_KEY = /(?:^|_)(?:api[_-]?key|secret|token|password|credential|authorization)s?$/iu;
-const AUTO_IDS = new Set(["auto", "copilot-auto"]);
+export const AUTO_IDS = new Set(["auto", "copilot-auto"]);
 
 export function isSecretKey(key) {
   return SECRET_KEY.test(String(key));
@@ -158,6 +158,14 @@ function asModelRecord(node, ctx) {
   };
 }
 
+function hasModelList(node) {
+  if (!node || typeof node !== "object" || Array.isArray(node)) return false;
+  for (const key of MODEL_PARENT_KEYS) {
+    if (Array.isArray(node[key])) return true;
+  }
+  return false;
+}
+
 function providerHintFrom(key, value, current) {
   if (PROVIDER_PARENT_KEYS.has(key) || MODEL_PARENT_KEYS.has(key)) return current;
   if (value && typeof value === "object" && !Array.isArray(value)) {
@@ -188,7 +196,8 @@ export function extractImportedModels(value, options = {}) {
     }
     if (typeof node !== "object") return;
 
-    const nestedProvider = (Array.isArray(node.models) || Array.isArray(node.data))
+    const isModelContainer = hasModelList(node);
+    const nestedProvider = isModelContainer
       ? stringField(node, ["name", "displayName", "display_name", "provider", "vendor"])
       : null;
     const localCtx = {
@@ -197,7 +206,7 @@ export function extractImportedModels(value, options = {}) {
       importedHint: ctx.importedHint || Boolean(nestedProvider)
     };
 
-    const record = asModelRecord(node, localCtx);
+    const record = isModelContainer ? null : asModelRecord(node, localCtx);
     if (record) {
       if (!includeHosted && record.origin === "hosted") return;
       if (seen.has(record.id)) return;
@@ -284,11 +293,14 @@ export async function listCatalogFiles(root, { maxDepth = 4, maxFiles = 40 } = {
   return files;
 }
 
-async function readCatalogFile(file, maxBytes) {
+async function readCatalogFile(file, maxBytes, { includeHosted = false } = {}) {
   const info = await stat(file);
   if (!info.isFile() || info.size > maxBytes) return [];
   const text = await readFile(file, "utf8");
-  return extractImportedModels(parseJsonDocument(text), { importedHint: /provider|imported|byok|custom/iu.test(path.basename(file)) });
+  return extractImportedModels(parseJsonDocument(text), {
+    includeHosted,
+    importedHint: /provider|imported|byok|custom/iu.test(path.basename(file))
+  });
 }
 
 export async function discoverImportedModels({
@@ -320,7 +332,7 @@ export async function discoverImportedModels({
   }
 
   for (const file of catalogFiles) {
-    await addFrom(`catalog-file:${path.basename(file)}`, () => readCatalogFile(file, maxBytes));
+    await addFrom(`catalog-file:${path.basename(file)}`, () => readCatalogFile(file, maxBytes, { includeHosted }));
   }
 
   for (const root of searchRoots) {
@@ -331,7 +343,7 @@ export async function discoverImportedModels({
       continue;
     }
     for (const file of files) {
-      await addFrom(`copilot-app-data:${path.basename(file)}`, () => readCatalogFile(file, maxBytes));
+      await addFrom(`copilot-app-data:${path.basename(file)}`, () => readCatalogFile(file, maxBytes, { includeHosted }));
     }
   }
 
@@ -340,9 +352,18 @@ export async function discoverImportedModels({
 
 export function formatModelList(models) {
   return models.map((model, index) => {
-    const details = [model.provider, model.name].filter(Boolean).join(" — ");
+    const details = [model.origin, model.provider, model.name].filter(Boolean).join(" — ");
     return `${String(index + 1).padStart(2, " ")}. ${model.id}${details ? `  (${details})` : ""}`;
   }).join("\n");
+}
+
+export function endpointCatalogModels(models, { allowUnlisted = false, includeHosted = false } = {}) {
+  return models.filter((model) => {
+    if (model.origin === "imported") return true;
+    if (!allowUnlisted) return false;
+    if (model.origin === "hosted") return includeHosted;
+    return true;
+  });
 }
 
 export function resolveRoleSelection(value, models, label) {

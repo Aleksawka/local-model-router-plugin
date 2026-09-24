@@ -11,7 +11,7 @@ Use this skill to configure `local-model-router` so one model already imported i
 
 - A Copilot-imported model is an identity already present in the App model picker after Settings → Model providers.
 - Senior and Junior are roles assigned to those models, not new models.
-- Agent profiles consume the assignment through their `model:` frontmatter. Copilot `Auto` is not an admissible role holder.
+- Agent profiles consume the assignment through their `model:` frontmatter. Copilot `Auto` (`auto` and `copilot-auto`) is not an admissible role holder.
 
 ## Procedure
 

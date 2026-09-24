@@ -1,5 +1,6 @@
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { AUTO_IDS } from "./imported-models.mjs";
 
 export const ROLE_ASSIGNMENTS = [
   ["agents/local-router-orchestrator.agent.md", "senior"],
@@ -20,7 +21,7 @@ export function validateModelId(label, value) {
   const trimmed = value.trim();
   if (!trimmed) throw new Error(`Missing ${label} model ID`);
   if (trimmed.length > 300 || /[\r\n]/u.test(trimmed)) throw new Error(`Invalid ${label} model ID`);
-  if (trimmed.toLocaleLowerCase("en-US") === "auto") throw new Error(`${label} cannot be Copilot Auto`);
+  if (AUTO_IDS.has(trimmed.toLocaleLowerCase("en-US"))) throw new Error(`${label} cannot be Copilot Auto`);
   return trimmed;
 }
 
