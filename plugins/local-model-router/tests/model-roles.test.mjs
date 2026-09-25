@@ -280,5 +280,60 @@ test("configure-models CLI refuses IDs outside the imported catalog", async () =
     );
     assert.equal(auto.status, 1);
     assert.match(auto.stderr, /cannot be Copilot Auto/);
+
+    const before = await readFile(path.join(root, "agents/local-router-orchestrator.agent.md"), "utf8");
+    const mixedCheck = spawnSync(
+      process.execPath,
+      [configure, "--check", "--catalog", catalog, "--senior", "1", "--junior", "2"],
+      { encoding: "utf8", env }
+    );
+    assert.equal(mixedCheck.status, 1);
+    assert.match(mixedCheck.stderr, /--check only verifies/);
+    assert.equal(await readFile(path.join(root, "agents/local-router-orchestrator.agent.md"), "utf8"), before);
+  });
+});
+
+test("keeps a saved hosted origin from being reread as imported", () => {
+  const saved = { models: [{ id: "gpt-4.1", origin: "hosted" }, { id: "phi-local", origin: "imported" }] };
+  const again = extractImportedModels(saved, { importedHint: true });
+  assert.deepEqual(again.map((model) => model.id), ["phi-local"]);
+  const hosted = extractImportedModels(saved, { importedHint: true, includeHosted: true });
+  assert.equal(hosted.find((model) => model.id === "gpt-4.1").origin, "hosted");
+});
+
+test("parses JSONC catalogs with trailing commas", () => {
+  const models = extractImportedModels(parseJsonDocument(`{
+    "models": [{ "id": "imported-a", "imported": true, },],
+  }`));
+  assert.equal(models[0].id, "imported-a");
+});
+
+test("explicit catalogs fail closed on unknown origin and missing files", async () => {
+  const openai = path.join(fixtures, "copilot-openai-models.json");
+  const hidden = await discoverImportedModels({ explicitCatalogFiles: [openai] });
+  assert.deepEqual(hidden.explicitModels.map((model) => model.origin), ["unknown", "unknown"]);
+  await assert.rejects(
+    () => discoverImportedModels({ explicitCatalogFiles: [path.join(fixtures, "missing.json")] }),
+    /not readable/
+  );
+  await withPluginCopy(async (root) => {
+    const env = { ...process.env, LOCAL_ROUTER_PLUGIN_ROOT: root };
+    const listed = spawnSync(process.execPath, [configure, "--catalog", openai, "--list"], { encoding: "utf8", env });
+    assert.equal(listed.status, 2, listed.stderr + listed.stdout);
+    assert.doesNotMatch(listed.stdout, /local-senior/);
+    const confirmed = spawnSync(
+      process.execPath,
+      [configure, "--catalog", openai, "--allow-unlisted", "--list"],
+      { encoding: "utf8", env }
+    );
+    assert.equal(confirmed.status, 0, confirmed.stderr + confirmed.stdout);
+    assert.match(confirmed.stdout, /local-senior/);
+    const missing = spawnSync(
+      process.execPath,
+      [configure, "--catalog", path.join(fixtures, "missing.json"), "--list"],
+      { encoding: "utf8", env }
+    );
+    assert.equal(missing.status, 1);
+    assert.match(missing.stderr, /not readable/);
   });
 });

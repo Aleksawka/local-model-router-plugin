@@ -71,8 +71,36 @@ export function parseJsonDocument(text) {
   try {
     return JSON.parse(trimmed);
   } catch {
-    return JSON.parse(stripJsonc(trimmed));
+    return JSON.parse(stripTrailingCommas(stripJsonc(trimmed)));
   }
+}
+
+function stripTrailingCommas(text) {
+  let output = "";
+  let inString = false;
+  let escaped = false;
+  for (let i = 0; i < text.length; i += 1) {
+    const char = text[i];
+    if (inString) {
+      output += char;
+      if (escaped) escaped = false;
+      else if (char === "\\") escaped = true;
+      else if (char === "\"") inString = false;
+      continue;
+    }
+    if (char === "\"") {
+      inString = true;
+      output += char;
+      continue;
+    }
+    if (char === ",") {
+      let j = i + 1;
+      while (j < text.length && /\s/u.test(text[j])) j += 1;
+      if (text[j] === "}" || text[j] === "]") continue;
+    }
+    output += char;
+  }
+  return output;
 }
 
 function stripJsonc(text) {
@@ -125,6 +153,7 @@ function stringField(value, keys) {
 function originFromRecord(record, ctx) {
   const source = stringField(record, ["source", "origin", "kind", "type"])?.toLocaleLowerCase("en-US");
   const vendor = stringField(record, ["vendor", "publisher"])?.toLocaleLowerCase("en-US");
+  if (source === "imported" || source === "hosted" || source === "unknown" || source === "unlisted") return source;
   if (record?.imported === true || record?.isImported === true || record?.custom === true || record?.isCustom === true || record?.byok === true) {
     return "imported";
   }
@@ -293,9 +322,18 @@ export async function listCatalogFiles(root, { maxDepth = 4, maxFiles = 40 } = {
   return files;
 }
 
-async function readCatalogFile(file, maxBytes, { includeHosted = false } = {}) {
-  const info = await stat(file);
-  if (!info.isFile() || info.size > maxBytes) return [];
+async function readCatalogFile(file, maxBytes, { includeHosted = false, strict = false } = {}) {
+  let info;
+  try {
+    info = await stat(file);
+  } catch (error) {
+    if (strict) throw new Error(`Catalog file not readable: ${file}`);
+    return [];
+  }
+  if (!info.isFile() || info.size > maxBytes) {
+    if (strict) throw new Error(`Catalog file is unusable: ${file}`);
+    return [];
+  }
   const text = await readFile(file, "utf8");
   return extractImportedModels(parseJsonDocument(text), {
     includeHosted,
@@ -305,6 +343,7 @@ async function readCatalogFile(file, maxBytes, { includeHosted = false } = {}) {
 
 export async function discoverImportedModels({
   catalogFiles = [],
+  explicitCatalogFiles = [],
   searchRoots = [],
   maxBytes = 2_000_000,
   maxDepth = 4,
@@ -313,26 +352,33 @@ export async function discoverImportedModels({
 } = {}) {
   const sources = [];
   const models = [];
+  const explicitModels = [];
   const seen = new Set();
 
-  async function addFrom(label, read) {
+  async function addFrom(label, read, { strict = false, explicit = false } = {}) {
     try {
       const found = await read();
       if (!found.length) return;
       sources.push(label);
+      const bucket = explicit ? explicitModels : models;
       for (const model of found) {
-        if (!includeHosted && model.origin === "hosted") continue;
+        if (!explicit && !includeHosted && model.origin === "hosted") continue;
         if (seen.has(model.id)) continue;
         seen.add(model.id);
-        models.push(model);
+        bucket.push(model);
       }
-    } catch {
-      // Catalog discovery is best-effort; assignment still fail-closes on an empty set.
+    } catch (error) {
+      if (strict) throw error;
+      // Automatic discovery is best-effort; assignment still fail-closes on an empty set.
     }
   }
 
   for (const file of catalogFiles) {
     await addFrom(`catalog-file:${path.basename(file)}`, () => readCatalogFile(file, maxBytes, { includeHosted }));
+  }
+
+  for (const file of explicitCatalogFiles) {
+    await addFrom(`catalog-file:${path.basename(file)}`, () => readCatalogFile(file, maxBytes, { includeHosted: true, strict: true }), { strict: true, explicit: true });
   }
 
   for (const root of searchRoots) {
@@ -347,7 +393,7 @@ export async function discoverImportedModels({
     }
   }
 
-  return { models, catalogSource: sources.length ? sources.join(",") : null };
+  return { models, explicitModels, catalogSource: sources.length ? sources.join(",") : null };
 }
 
 export function formatModelList(models) {

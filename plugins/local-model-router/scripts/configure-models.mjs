@@ -70,6 +70,7 @@ function parseArgs(argv) {
     senior: null,
     junior: null,
     catalogFiles: [],
+    userCatalog: false,
     fromEndpoint: null
   };
   for (let i = 0; i < argv.length; i += 1) {
@@ -82,7 +83,10 @@ function parseArgs(argv) {
     else if (value === "--include-hosted") result.includeHosted = true;
     else if (value === "--senior") result.senior = next();
     else if (value === "--junior") result.junior = next();
-    else if (value === "--catalog") result.catalogFiles.push(next());
+    else if (value === "--catalog") {
+      result.catalogFiles.push(next());
+      result.userCatalog = true;
+    }
     else if (value === "--from-endpoint") result.fromEndpoint = next();
     else if (value === "--help" || value === "-h") result.help = true;
     else throw new Error(`Unknown argument: ${value}`);
@@ -133,11 +137,16 @@ async function loadCatalog(args) {
   const pluginCatalog = await readPluginImportedCatalog(pluginRoot);
   const pluginCatalogFile = path.join(pluginRoot, IMPORTED_MODELS_RELATIVE);
   const discovered = await discoverImportedModels({
-    catalogFiles: [pluginCatalogFile, ...args.catalogFiles],
+    catalogFiles: [pluginCatalogFile],
+    explicitCatalogFiles: args.catalogFiles,
     searchRoots: defaultSearchRoots(),
     includeHosted: args.includeHosted
   });
   const endpointModels = endpointCatalogModels(await loadEndpointCatalog(args.fromEndpoint), {
+    allowUnlisted: args.allowUnlisted,
+    includeHosted: args.includeHosted
+  });
+  const explicitModels = endpointCatalogModels(discovered.explicitModels, {
     allowUnlisted: args.allowUnlisted,
     includeHosted: args.includeHosted
   });
@@ -147,7 +156,8 @@ async function loadCatalog(args) {
   if (discovered.catalogSource) sources.push(discovered.catalogSource);
   if (endpointModels.length) sources.push("provider-endpoint");
 
-  for (const model of [...extractImportedModels(pluginCatalog, { importedHint: true }), ...discovered.models, ...endpointModels]) {
+  for (const model of [...extractImportedModels(pluginCatalog, { importedHint: true }), ...discovered.models, ...explicitModels, ...endpointModels]) {
+    if (!args.includeHosted && model.origin === "hosted") continue;
     if (seen.has(model.id)) continue;
     seen.add(model.id);
     models.push(model);
@@ -219,7 +229,10 @@ async function main() {
     return;
   }
 
-  if (args.check && !args.list && !args.senior && !args.junior && !args.saveCatalog) {
+  if (args.check) {
+    if (args.list || args.senior || args.junior || args.saveCatalog || args.userCatalog || args.fromEndpoint || args.allowUnlisted || args.includeHosted) {
+      throw new Error("--check only verifies the saved setting. Run --list or assignment as a separate command.");
+    }
     await runCheck();
     return;
   }

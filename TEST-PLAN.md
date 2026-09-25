@@ -53,7 +53,7 @@ Pass:
 
 - JSON и структура валидны;
 - архив по умолчанию в audit mode;
-- двадцать пять unit-тестов hook и role setting прошли;
+- двадцать восемь unit-тестов hook и role setting прошли;
 - `model-roles.json` ещё не назначает роли до `--senior`/`--junior`;
 - Junior-профили не имеют tool `agent`.
 
