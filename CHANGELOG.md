@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.2.0 — 2026-09-22
+
+- Настройка ролей: какая из уже импортированных в GitHub Copilot App моделей используется как Senior, а какая как Junior.
+- Каталог допустимых моделей (`config/imported-models.json`) отделён от назначения ролей (`config/model-roles.json`).
+- `configure-models.mjs` обнаруживает Copilot-imported модели, принимает точный ID или индекс из `--list` и отказывается от ID вне каталога.
+- Slash-команда `/set-model-roles` и skill `local-model-roles`.
+- Unit-тесты назначения ролей и извлечения каталога.
+- `--allow-unlisted` принимает точный ID и при непустом каталоге; числовой индекс по-прежнему берётся из `--list`.
+- Узел провайдера с вложенным списком моделей остаётся контейнером и не попадает в каталог как модель.
+- `--include-hosted` доходит до чтения файлов каталога. `--list` печатает `origin`. `--from-endpoint` берёт только `origin=imported`, пока не задан `--allow-unlisted`.
+- Назначение отвергает и `auto`, и `copilot-auto`.
+- Подтверждённый через `--allow-unlisted` ID сохраняется в каталоге с `origin: "unlisted"`, поэтому следующий `--check` его принимает.
+- `npm test` передаёт glob раннеру Node (`node --test "tests/*.test.mjs"`), а не оболочке, которая на Windows его не раскрывает.
+- `npm test` вызывает оба файла тестов по имени, без glob: Node 24 не раскрывает шаблон, переданный буквально.
+- `--check` вместе с назначением или `--list` завершается ошибкой и не переписывает роли.
+- Явный `--catalog` и `COPILOT_IMPORTED_MODELS_FILE` сообщают об ошибке чтения. Записи `origin: unknown` из такого файла принимаются только с `--allow-unlisted`.
+- Сохранённый `origin: "hosted"` не превращается обратно в `imported`. JSONC с висячей запятой разбирается.
+
 ## 0.1.1 — 2026-09-02
 
 - Align `preToolUse` with the current Copilot hooks reference: match `task`, `Task`, `Agent`, and `custom-agent`, not only `task`.

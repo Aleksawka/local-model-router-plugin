@@ -5,7 +5,7 @@ description: Decide when a fixed local Senior may delegate a bounded task to a f
 
 # Local routing policy
 
-Use this policy only when the parent session is explicitly pinned to the configured Qwen Senior model. Do not use it with Copilot `Auto`.
+Use this policy only when the parent session is explicitly pinned to the imported model assigned as Senior in `config/model-roles.json`. Do not use it with Copilot `Auto`.
 
 A task is Junior-eligible only when all conditions hold:
 
@@ -27,4 +27,4 @@ Choose the smallest matching role:
 
 When delegating, include objective, allowed/forbidden files, exact validation, return format, and `ESCALATE` rule. Senior must review every returned diff and command result.
 
-Treat model identity as an observable property. Confirm the physical Senior → Junior → Senior sequence in oMLX DEBUG logs; never trust the agent name or response alone.
+Treat model identity as an observable property. Confirm the physical Senior → Junior → Senior sequence in provider/oMLX DEBUG logs; never trust the agent name or response alone. Senior and Junior IDs must be Copilot-imported picker IDs from `config/model-roles.json`.

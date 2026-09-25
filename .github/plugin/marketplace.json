@@ -5,13 +5,13 @@
   },
   "metadata": {
     "description": "Local model routing experiments for GitHub Copilot",
-    "version": "0.1.1"
+    "version": "0.2.0"
   },
   "plugins": [
     {
       "name": "local-model-router",
       "description": "Audit and rewrite bounded Copilot subagent dispatches to local model-backed agent profiles",
-      "version": "0.1.1",
+      "version": "0.2.0",
       "source": "./plugins/local-model-router",
       "license": "MIT",
       "keywords": ["copilot", "hooks", "agents", "local-models"]

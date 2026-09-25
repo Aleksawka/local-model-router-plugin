@@ -1,0 +1,24 @@
+{
+  "githubHostedModels": [
+    {
+      "id": "gpt-4.1",
+      "vendor": "github",
+      "source": "github-hosted"
+    }
+  ],
+  "providers": [
+    {
+      "name": "Foundry Local",
+      "models": [
+        {
+          "id": "auto",
+          "name": "Auto"
+        },
+        {
+          "id": "phi-local",
+          "displayName": "Phi local"
+        }
+      ]
+    }
+  ]
+}
